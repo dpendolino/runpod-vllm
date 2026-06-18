@@ -66,8 +66,9 @@ env = [
     {"key": "MODEL_NAME", "value": os.environ["MODEL_NAME"]},
     {"key": "MAX_MODEL_LEN", "value": os.environ.get("MAX_MODEL_LEN", "8192")},
     {"key": "GPU_MEMORY_UTILIZATION", "value": os.environ.get("GPU_MEMORY_UTILIZATION", "0.9")},
-    {"key": "HF_HUB_ENABLE_HF_TRANSFER", "value": "1"},
+    {"key": "HF_XET_HIGH_PERFORMANCE", "value": "1"},
     {"key": "HF_HUB_DOWNLOAD_TIMEOUT", "value": "120"},
+    {"key": "PYTHONWARNINGS", "value": "ignore::FutureWarning"},
 ]
 if os.environ.get("HF_TOKEN"):
     env.append({"key": "HF_TOKEN", "value": os.environ["HF_TOKEN"]})
