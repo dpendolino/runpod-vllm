@@ -79,6 +79,7 @@ inp = {
     "volumeInGb": 0,
     "isServerless": True,
     "dockerArgs": "",
+    "containerRegistryAuthId": None,
     "env": env,
 }
 if os.environ.get("TEMPLATE_ID"):
