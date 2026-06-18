@@ -83,8 +83,6 @@ inp = {
 }
 if os.environ.get("TEMPLATE_ID"):
     inp["id"] = os.environ["TEMPLATE_ID"]
-if os.environ.get("REGISTRY_AUTH_ID"):
-    inp["containerRegistryAuthId"] = os.environ["REGISTRY_AUTH_ID"]
 print(json.dumps(inp))
 PY
 }
@@ -122,31 +120,6 @@ print(json.dumps({
 PY
 }
 
-# Create or reuse a Docker Hub registry auth on RunPod.
-# Requires DOCKER_USERNAME and DOCKER_PASSWORD env vars in .env.
-ensure_registry_auth() {
-  if [[ -z "${DOCKER_USERNAME:-}" || -z "${DOCKER_PASSWORD:-}" ]]; then
-    echo "  (skip — set DOCKER_USERNAME and DOCKER_PASSWORD in .env to avoid Docker Hub rate limits)"
-    return 0
-  fi
-  if [[ -n "${REGISTRY_AUTH_ID:-}" ]]; then
-    echo "  (reusing REGISTRY_AUTH_ID=$REGISTRY_AUTH_ID)"
-    return 0
-  fi
-  local resp
-  resp=$(curl -sS -X POST "$REST/containerregistryauth" \
-    -H "Authorization: Bearer $RUNPOD_API_KEY" \
-    -H "Content-Type: application/json" \
-    -d "{\"name\":\"dockerhub\",\"username\":\"$DOCKER_USERNAME\",\"password\":\"$DOCKER_PASSWORD\"}" 2>/dev/null)
-  REGISTRY_AUTH_ID=$(echo "$resp" | jq -r '.id // empty' 2>/dev/null)
-  if [[ -z "$REGISTRY_AUTH_ID" ]]; then
-    echo "  (skip — registry auth unavailable, continuing without it)"
-    return 0
-  fi
-  upsert_id_in_env REGISTRY_AUTH_ID "$REGISTRY_AUTH_ID"
-  echo "  (created REGISTRY_AUTH_ID=$REGISTRY_AUTH_ID)"
-}
-
 upsert_id_in_env() {
   local key="$1" value="$2"
   if grep -q "^$key=" .env; then
@@ -157,10 +130,7 @@ upsert_id_in_env() {
   rm -f .env.bak
 }
 
-export IMAGE TEMPLATE_NAME REGISTRY_AUTH_ID
-
-echo "==> Setting up Docker Hub registry auth"
-ensure_registry_auth
+export IMAGE TEMPLATE_NAME
 
 echo "==> Saving template ($TEMPLATE_NAME)"
 INPUT=$(build_template_input)
