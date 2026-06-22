@@ -1,4 +1,4 @@
-.PHONY: help init deploy test chat status logs destroy clean check
+.PHONY: help init deploy deploy-skip-canary test chat status logs destroy clean check
 
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
@@ -23,8 +23,11 @@ check: ## Verify .env is filled in
 		if [[ -n "$$missing" ]]; then echo "Missing in .env:$$missing"; exit 1; fi; \
 		echo "Config OK"
 
-deploy: check ## Create or update the serverless endpoint
+deploy: check ## Deploy + run canary test (recommended)
 	@./deploy.sh
+
+deploy-skip-canary: check ## Deploy without canary test (CI/scripting)
+	@./deploy.sh --skip-canary
 
 test: ## Send a test prompt (cold start: 30-90s)
 	@./test.sh
