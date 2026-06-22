@@ -15,7 +15,7 @@ echo "Sending test prompt to $URL"
 echo "(First request triggers cold start — expect 30-90s)"
 echo
 
-curl -fsS "$URL" \
+curl -fsS --connect-timeout 15 --max-time 180 "$URL" \
   -H "Authorization: Bearer $RUNPOD_API_KEY" \
   -H "Content-Type: application/json" \
   -d "{

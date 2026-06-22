@@ -98,6 +98,7 @@ inp = {
     "workersMin": int(os.environ.get("MIN_WORKERS", "0")),
     "workersMax": int(os.environ.get("MAX_WORKERS", "1")),
     "idleTimeout": int(os.environ.get("IDLE_TIMEOUT", "30")),
+    "executionTimeoutMs": int(os.environ.get("EXECUTION_TIMEOUT_MS", "600000")),
     "scalerType": "QUEUE_DELAY",
     "scalerValue": 4,
 }
@@ -131,7 +132,26 @@ upsert_id_in_env() {
   rm -f .env.bak
 }
 
+check_spend() {
+  local threshold="${SPEND_LIMIT_ALERT:-5}"
+  (( $(echo "$threshold == 0" | bc -l) )) && return 0
+
+  local resp
+  resp=$(call_api '{"query":"query { myself { clientBalance } }"}')
+  local balance
+  balance=$(echo "$resp" | jq -r '.data.myself.clientBalance // 999')
+  if (( $(echo "$balance < $threshold" | bc -l) )); then
+    echo "WARNING: Account balance is \$$balance — below \$$threshold threshold."
+    echo "Deploying may trigger 'insufficient balance' errors if charges exceed credit."
+    echo
+    read -rp "Deploy anyway? [y/N] " confirm
+    [[ "$confirm" == "y" || "$confirm" == "Y" ]] || exit 1
+  fi
+}
+
 export IMAGE TEMPLATE_NAME
+
+check_spend
 
 echo "==> Saving template ($TEMPLATE_NAME)"
 INPUT=$(build_template_input)
@@ -165,5 +185,19 @@ echo "Template ID: $TEMPLATE_ID"
 echo "Endpoint ID: $NEW_ID"
 echo "Endpoint URL: https://api.runpod.ai/v2/$NEW_ID"
 echo "OpenAI-compat URL: https://api.runpod.ai/v2/$NEW_ID/openai/v1"
+
 echo
-echo "Test it: make test"
+echo "==> Running canary test (pass --skip-canary to skip)..."
+if [[ "${1:-}" != "--skip-canary" ]]; then
+  if timeout 180 ./test.sh 2>/dev/null; then
+    echo
+    echo "Canary passed -- endpoint is responding."
+  else
+    echo
+    echo "WARNING: Canary test failed -- worker may be stuck in a crash loop."
+    echo "Check logs at https://console.runpod.io/serverless/$NEW_ID"
+    echo "Run 'make destroy' to tear down if the model can't load."
+  fi
+else
+  echo "(skipped)"
+fi
